@@ -372,7 +372,9 @@
 
 <script>
   const tg = window.Telegram && window.Telegram.WebApp;
-  const inTelegram = !!(tg && tg.initData);
+  // initData пустой, когда приложение открыто кнопкой клавиатуры, поэтому смотрим на platform:
+  // вне Telegram библиотека выставляет "unknown".
+  const inTelegram = !!(tg && tg.platform && tg.platform !== "unknown");
   const MAX_LINKS = 5;
   const ALLOWED_HOSTS = [
     "music.yandex.ru", "music.yandex.com", "music.yandex.by", "music.yandex.kz",
@@ -475,7 +477,11 @@
   function send(payload) {
     const data = JSON.stringify(payload);
     if (inTelegram) {
-      tg.sendData(data); // приложение закроется, бот получит данные
+      try {
+        tg.sendData(data); // приложение закроется, бот получит данные
+      } catch (e) {
+        toast("Не получилось отправить. Закрой приложение и открой его кнопкой «🎄 Открыть приложение» внизу чата");
+      }
     } else {
       console.log("sendData:", data);
       toast("Открой приложение кнопкой в боте — тогда заявка отправится");
