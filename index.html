@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Новогодняя дискотека</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-1: #0d1442;
+    --bg-2: #060920;
+    --gold: #f6c95b;
+    --gold-soft: rgba(246, 201, 91, .55);
+    --text: #f3f4fb;
+    --muted: #aeb4d6;
+    --card: rgba(18, 26, 74, .62);
+    --card-line: rgba(246, 201, 91, .22);
+    --danger: #ff6b6b;
+    --ok: #5fd38d;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: radial-gradient(120% 80% at 50% 30%, var(--bg-1) 0%, var(--bg-2) 70%) fixed, var(--bg-2);
+    color: var(--text);
+    font: 500 15px/1.5 Manrope, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* ---------- фон: боке, снег, гирлянда ---------- */
+  .bokeh { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .bokeh i {
+    position: absolute; border-radius: 50%; filter: blur(38px); opacity: .35;
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+  .bokeh i:nth-child(1) { width: 220px; height: 220px; left: -60px; top: 12%; background: #c9853a; }
+  .bokeh i:nth-child(2) { width: 260px; height: 260px; right: -90px; top: 4%; background: #2a4fb0; animation-delay: -6s; }
+  .bokeh i:nth-child(3) { width: 200px; height: 200px; left: 20%; bottom: -40px; background: #8d2f4a; animation-delay: -3s; }
+  .bokeh i:nth-child(4) { width: 170px; height: 170px; right: 5%; bottom: 22%; background: #a87b2f; animation-delay: -9s; }
+  .bokeh i:nth-child(5) { width: 140px; height: 140px; left: 40%; top: 40%; background: #1f6c8f; opacity: .22; animation-delay: -12s; }
+  @keyframes drift { to { transform: translate(30px, -24px) scale(1.12); } }
+
+  #snow { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+
+  .garland { position: relative; z-index: 2; height: 46px; margin: 0 -16px; }
+  .garland svg { width: 100%; height: 100%; display: block; }
+  .bulb { animation: blink 2.4s ease-in-out infinite; }
+  .bulb:nth-of-type(2n) { animation-delay: -.8s; }
+  .bulb:nth-of-type(3n) { animation-delay: -1.6s; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+  /* ---------- раскладка ---------- */
+  .app {
+    position: relative; z-index: 3; max-width: 480px; margin: 0 auto;
+    padding: 0 16px calc(28px + env(safe-area-inset-bottom));
+  }
+  .frame {
+    position: relative; border: 1.5px solid var(--gold-soft); border-radius: 22px; padding: 22px 18px;
+    background: linear-gradient(180deg, rgba(13, 20, 66, .55), rgba(6, 9, 32, .55));
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  }
+  .frame::before {
+    content: ""; position: absolute; inset: 5px; border: 1px solid rgba(246, 201, 91, .28);
+    border-radius: 17px; pointer-events: none;
+  }
+
+  .steps { display: flex; gap: 6px; justify-content: center; margin: 4px 0 16px; }
+  .steps span { width: 26px; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, .16); transition: background .3s, width .3s; }
+  .steps span.on { background: var(--gold); width: 38px; }
+
+  .screen { display: none; animation: fadeUp .45s ease both; }
+  .screen.active { display: block; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+  h1, h2 { font-family: Unbounded, Manrope, system-ui, sans-serif; margin: 0; letter-spacing: .02em; }
+  .title { text-align: center; line-height: 1.02; font-weight: 800; font-size: clamp(22px, 7.4vw, 36px); text-transform: uppercase; }
+  .title .w { color: #fff; display: block; text-shadow: 0 0 24px rgba(255, 255, 255, .25); }
+  .title .g { color: var(--gold); display: block; text-shadow: 0 0 26px rgba(246, 201, 91, .35); }
+  .pill {
+    display: block; width: fit-content; max-width: 100%; margin: 14px auto 0; padding: 7px 16px; border-radius: 999px;
+    background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .1); color: #e6e8f6; font-size: 14px; text-align: center;
+  }
+  .lead { color: var(--muted); margin: 18px 2px 0; }
+  .lead b { color: var(--text); }
+
+  /* диско-шар */
+  .ball-wrap { position: relative; height: 210px; display: grid; place-items: center; margin-bottom: 8px; }
+  .ball-wrap::before {
+    content: ""; position: absolute; width: 230px; height: 230px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, .22), transparent 65%);
+  }
+  .string { position: absolute; top: -10px; left: 50%; width: 1px; height: 48px; background: rgba(255, 255, 255, .6); }
+  .ball {
+    position: relative; width: 150px; height: 150px; border-radius: 50%; margin-top: 30px; overflow: hidden;
+    background:
+      radial-gradient(circle at 30% 26%, #fff 0 14%, transparent 30%),
+      repeating-linear-gradient(0deg, rgba(60, 66, 110, .55) 0 1px, transparent 1px 11px),
+      repeating-linear-gradient(90deg, rgba(60, 66, 110, .55) 0 1px, transparent 1px 11px),
+      radial-gradient(circle at 40% 35%, #f7f8ff, #c9cde4 55%, #8d93b6);
+    box-shadow: 0 0 60px rgba(255, 255, 255, .35), inset -12px -16px 30px rgba(20, 24, 60, .45);
+    animation: spin 8s linear infinite;
+  }
+  @keyframes spin { to { background-position: 0 0, 0 0, 110px 0, 0 0; } }
+  .spark { position: absolute; color: var(--gold); font-size: 14px; animation: twinkle 2s ease-in-out infinite; }
+  @keyframes twinkle { 0%, 100% { opacity: .2; transform: scale(.7); } 50% { opacity: 1; transform: scale(1.1); } }
+
+  /* ---------- правила ---------- */
+  .rules-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .shield {
+    flex: none; width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center;
+    border: 1.5px solid var(--gold); box-shadow: 0 0 22px rgba(246, 201, 91, .3), inset 0 0 18px rgba(246, 201, 91, .15);
+  }
+  .rules-head h2 { color: var(--gold); font-size: 20px; text-transform: uppercase; line-height: 1.15; }
+  .rules-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  .intro { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
+
+  .rule {
+    background: var(--card); border: 1px solid var(--card-line); border-radius: 16px; padding: 13px 14px; margin-bottom: 10px;
+  }
+  .rule h3 { margin: 0 0 6px; font-size: 14.5px; font-weight: 700; display: flex; gap: 8px; align-items: center; }
+  .rule ul { margin: 0; padding: 0; list-style: none; }
+  .rule li { position: relative; padding-left: 16px; color: #d7daee; font-size: 14px; margin-top: 4px; }
+  .rule li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+  .rule.warn { border-color: rgba(255, 107, 107, .3); }
+  .rule.warn li::before { background: var(--danger); }
+  .closing { text-align: center; color: var(--gold); font-weight: 700; margin: 14px 0 4px; }
+
+  /* ---------- чекбоксы ---------- */
+  .check {
+    display: flex; gap: 12px; align-items: flex-start; cursor: pointer; user-select: none;
+    background: rgba(246, 201, 91, .07); border: 1px solid var(--card-line); border-radius: 16px; padding: 14px; margin-top: 14px;
+    transition: border-color .2s, background .2s;
+  }
+  .check input { position: absolute; opacity: 0; pointer-events: none; }
+  .box {
+    flex: none; width: 24px; height: 24px; border-radius: 7px; border: 2px solid var(--gold-soft); display: grid; place-items: center;
+    transition: background .2s, border-color .2s, transform .15s;
+  }
+  .box svg { width: 14px; height: 14px; opacity: 0; transform: scale(.4); transition: .2s; }
+  .check input:checked + .box { background: var(--gold); border-color: var(--gold); transform: scale(1.05); }
+  .check input:checked + .box svg { opacity: 1; transform: none; }
+  .check:has(input:checked) { border-color: var(--gold-soft); background: rgba(246, 201, 91, .12); }
+  .check input:focus-visible + .box { outline: 2px solid #fff; outline-offset: 2px; }
+  .check span.t { font-size: 14.5px; }
+
+  /* ---------- форма ---------- */
+  label.lbl { display: block; font-size: 13px; color: var(--muted); margin: 18px 2px 6px; font-weight: 600; }
+  .field {
+    width: 100%; font: inherit; color: var(--text); background: rgba(6, 9, 32, .6);
+    border: 1px solid rgba(174, 180, 214, .25); border-radius: 14px; padding: 13px 14px; outline: none; transition: border-color .2s, box-shadow .2s;
+  }
+  .field::placeholder { color: #6f769d; }
+  .field:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(246, 201, 91, .15); }
+  .field.bad { border-color: var(--danger); }
+  .link-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .link-row .field { flex: 1; min-width: 0; }
+  .icon-btn {
+    flex: none; width: 46px; border-radius: 14px; border: 1px solid rgba(174, 180, 214, .25); background: rgba(6, 9, 32, .6);
+    color: var(--muted); font-size: 18px; cursor: pointer;
+  }
+  .add {
+    width: 100%; background: none; border: 1px dashed var(--gold-soft); color: var(--gold); border-radius: 14px; padding: 11px;
+    font: 600 14px Manrope, system-ui, sans-serif; cursor: pointer;
+  }
+  .hint { font-size: 12.5px; color: #8389b1; margin: 8px 2px 0; }
+  .err { color: var(--danger); font-size: 13px; margin: 8px 2px 0; min-height: 1em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chips span { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, .07); color: #c5c9e3; }
+
+  .guest {
+    margin-top: 16px; padding: 14px; border-radius: 16px; background: rgba(42, 79, 176, .18); border: 1px solid rgba(110, 150, 255, .25);
+    color: #d6dcf7; font-size: 14px;
+  }
+  .hidden { display: none !important; }
+
+  /* ---------- кнопки ---------- */
+  .btn {
+    display: block; width: 100%; margin-top: 18px; padding: 15px 18px; border: 0; border-radius: 16px; cursor: pointer;
+    font: 700 16px Manrope, system-ui, sans-serif; color: #1b1606;
+    background: linear-gradient(180deg, #ffdc86, var(--gold) 55%, #e0ab35);
+    box-shadow: 0 8px 26px rgba(246, 201, 91, .28), inset 0 1px 0 rgba(255, 255, 255, .6);
+    transition: transform .12s, opacity .2s, filter .2s;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .38; filter: grayscale(.5); box-shadow: none; cursor: default; }
+  .btn.danger { background: transparent; color: var(--danger); box-shadow: none; border: 1px solid rgba(255, 107, 107, .4); margin-top: 10px; font-weight: 600; }
+
+  .status-icon {
+    width: 96px; height: 96px; margin: 10px auto 18px; border-radius: 50%; display: grid; place-items: center; font-size: 44px;
+    border: 1.5px solid var(--gold); box-shadow: 0 0 30px rgba(246, 201, 91, .3), inset 0 0 22px rgba(246, 201, 91, .15);
+  }
+  .status-title { text-align: center; color: var(--gold); font-size: 20px; text-transform: uppercase; line-height: 1.2; }
+
+  .trees { display: flex; justify-content: space-between; align-items: flex-end; margin: 18px 6px -6px; opacity: .9; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); opacity: 0;
+    z-index: 10; max-width: calc(100% - 32px); background: #141c52; border: 1px solid var(--gold-soft); color: var(--text);
+    padding: 12px 16px; border-radius: 14px; font-size: 14px; transition: .3s; pointer-events: none; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    #snow { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="bokeh" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+<canvas id="snow" aria-hidden="true"></canvas>
+
+<main class="app">
+  <div class="garland" aria-hidden="true">
+    <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+      <path d="M0 8 Q50 30 100 14 T200 14 T300 14 T400 8" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1"/>
+      <g>
+        <circle class="bulb" cx="22" cy="17" r="5" fill="#ff5a5a"/>
+        <circle class="bulb" cx="62" cy="23" r="5" fill="#f6c95b"/>
+        <circle class="bulb" cx="104" cy="15" r="5" fill="#4fd17e"/>
+        <circle class="bulb" cx="146" cy="21" r="5" fill="#4f8dff"/>
+        <circle class="bulb" cx="188" cy="15" r="5" fill="#ff5a5a"/>
+        <circle class="bulb" cx="230" cy="20" r="5" fill="#f6c95b"/>
+        <circle class="bulb" cx="272" cy="16" r="5" fill="#4fd17e"/>
+        <circle class="bulb" cx="314" cy="19" r="5" fill="#4f8dff"/>
+        <circle class="bulb" cx="356" cy="15" r="5" fill="#ff5a5a"/>
+        <circle class="bulb" cx="390" cy="10" r="5" fill="#f6c95b"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="steps" aria-hidden="true"><span class="on"></span><span></span><span></span></div>
+
+  <div class="frame">
+    <!-- Статус заявки (открывается, если бот передал ?s=pending) -->
+    <section class="screen" id="s-status">
+      <div class="status-icon" aria-hidden="true">🎶</div>
+      <h2 class="status-title">Твоя заявка на проверке</h2>
+      <p class="lead" style="text-align:center">Организаторы посмотрят трек и добавят его в плейлист. Если передумал(-а) — заявку можно отменить.</p>
+      <button class="btn" data-go="s-reg">Предложить ещё трек</button>
+      <button class="btn danger" id="cancel-app">Отменить заявку</button>
+    </section>
+
+    <!-- 1. Приветствие -->
+    <section class="screen" id="s-hello">
+      <div class="ball-wrap" aria-hidden="true">
+        <div class="string"></div>
+        <div class="ball"></div>
+        <span class="spark" style="left:16%;top:46%">✦</span>
+        <span class="spark" style="left:24%;top:70%;animation-delay:-.7s">✧</span>
+        <span class="spark" style="right:17%;top:38%;animation-delay:-1.2s">✦</span>
+        <span class="spark" style="right:23%;top:74%;animation-delay:-.4s">✧</span>
+      </div>
+      <h1 class="title"><span class="w">Новогодняя</span><span class="g">дискотека</span></h1>
+      <span class="pill">Встречаем Новый год всей школой!</span>
+      <p class="lead">🎄 Привет! Здесь ты сможешь <b>зарегистрироваться</b>, получить <b>именной билет</b>, <b>предложить трек</b> для плейлиста и следить за подготовкой к вечеру.</p>
+      <p class="lead">Осталось совсем немного: прочитай правила и подтверди, что согласен(-на) их соблюдать — и все функции откроются 👇</p>
+      <button class="btn" data-go="s-rules">Читать правила</button>
+      <div class="trees" aria-hidden="true">
+        <svg width="40" height="54" viewBox="0 0 40 54"><path d="M20 0 6 18h8L2 34h10L0 46h40L28 34h10L26 18h8z" fill="#5fae6e"/><rect x="16" y="46" width="8" height="8" fill="#8a5a3c"/></svg>
+        <svg width="28" height="38" viewBox="0 0 40 54"><path d="M20 0 6 18h8L2 34h10L0 46h40L28 34h10L26 18h8z" fill="#4c9a5c"/><rect x="16" y="46" width="8" height="8" fill="#8a5a3c"/></svg>
+        <svg width="28" height="38" viewBox="0 0 40 54"><path d="M20 0 6 18h8L2 34h10L0 46h40L28 34h10L26 18h8z" fill="#4c9a5c"/><rect x="16" y="46" width="8" height="8" fill="#8a5a3c"/></svg>
+        <svg width="40" height="54" viewBox="0 0 40 54"><path d="M20 0 6 18h8L2 34h10L0 46h40L28 34h10L26 18h8z" fill="#5fae6e"/><rect x="16" y="46" width="8" height="8" fill="#8a5a3c"/></svg>
+      </div>
+    </section>
+
+    <!-- 2. Правила -->
+    <section class="screen" id="s-rules">
+      <div class="rules-head">
+        <div class="shield" aria-hidden="true">
+          <svg width="28" height="32" viewBox="0 0 28 32" fill="none" stroke="#f6c95b" stroke-width="1.8" stroke-linejoin="round">
+            <path d="M14 1 26 6v9c0 7.5-5.2 13.4-12 16C7.2 28.4 2 22.5 2 15V6z"/><path d="m8.5 16 4 4 7-8" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <h2>Правила дискотеки</h2>
+          <p>прочитай перед тем, как идти</p>
+        </div>
+      </div>
+      <p class="intro">Регистрируясь через этого бота и приходя на мероприятие, ты подтверждаешь, что ознакомился(-ась) с правилами и согласен(-на) их соблюдать.</p>
+
+      <div class="rule warn">
+        <h3>🚫 Строго запрещено проносить</h3>
+        <ul>
+          <li>Алкоголь, энергетики, сигареты/вейпы в любом виде</li>
+          <li>Любые запрещённые вещества — при обнаружении вызывается администрация школы и, при необходимости, полиция</li>
+          <li>Стеклянную тару, оружие, пиротехнику, любые острые/опасные предметы</li>
+        </ul>
+      </div>
+      <div class="rule">
+        <h3>🤝 Поведение</h3>
+        <ul>
+          <li>Уважение к другим участникам, организаторам и дежурным — без исключений</li>
+          <li>Нулевая терпимость к дракам, оскорблениям, буллингу и травле</li>
+          <li>Обязательно выполнять требования дежурных учителей/организаторов</li>
+          <li>Порча имущества школы возмещается виновным (или его родителями/опекунами)</li>
+        </ul>
+      </div>
+      <div class="rule">
+        <h3>🎟 Гости из других школ — строго по регламенту</h3>
+        <ul><li>Гость допускается ТОЛЬКО по заранее одобренной заявке через бота</li></ul>
+      </div>
+      <div class="rule">
+        <h3>📸 Фото и видео</h3>
+        <ul><li>На мероприятии ведётся фото- и видеосъёмка организаторами</li></ul>
+      </div>
+      <div class="rule warn">
+        <h3>⚠️ Нарушение правил</h3>
+        <ul>
+          <li>Нарушитель немедленно выводится с мероприятия без возврата и предупреждений</li>
+          <li>О случившемся сообщается классному руководителю и, при необходимости, родителям</li>
+          <li>Грубые нарушения могут повлечь недопуск на все последующие мероприятия школы</li>
+        </ul>
+      </div>
+      <p class="closing">Соблюдай правила — и вечер пройдёт отлично для всех! 🎉</p>
+
+      <label class="check">
+        <input type="checkbox" id="agree">
+        <span class="box"><svg viewBox="0 0 14 14" fill="none" stroke="#1b1606" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7.5 3.2 3L12 3.5"/></svg></span>
+        <span class="t">Я ознакомился(-ась) с правилами и согласен(-на) их соблюдать</span>
+      </label>
+      <button class="btn" id="to-reg" disabled>Далее</button>
+    </section>
+
+    <!-- 3. Регистрация -->
+    <section class="screen" id="s-reg">
+      <h2 style="font-size:20px;color:var(--gold);text-transform:uppercase">Регистрация</h2>
+      <p class="intro" style="margin-top:6px">Пара вопросов — и ты в списке 🎶</p>
+
+      <label class="check" style="margin-top:4px">
+        <input type="checkbox" id="g7">
+        <span class="box"><svg viewBox="0 0 14 14" fill="none" stroke="#1b1606" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7.5 3.2 3L12 3.5"/></svg></span>
+        <span class="t"><b>Я из 7 гимназии</b></span>
+      </label>
+
+      <div id="guest" class="guest">
+        🎟 Не из 7 гимназии? Гости допускаются только по заранее одобренной заявке — заполни её ниже, организаторы проверят.
+      </div>
+
+      <div id="guest-fields">
+        <label class="lbl" for="school">Номер школы</label>
+        <input class="field" id="school" maxlength="30" inputmode="numeric" placeholder="Например, 12">
+        <label class="lbl" for="first-name">Имя</label>
+        <input class="field" id="first-name" maxlength="64" placeholder="Имя" autocomplete="given-name">
+        <label class="lbl" for="last-name">Фамилия</label>
+        <input class="field" id="last-name" maxlength="64" placeholder="Фамилия" autocomplete="family-name">
+      </div>
+
+      <div id="g7-fields" class="hidden">
+        <label class="lbl" for="name">Как тебя зовут?</label>
+        <input class="field" id="name" maxlength="64" placeholder="Имя и фамилия" autocomplete="name">
+      </div>
+
+      <div>
+        <label class="lbl">Какой трек поставить на дискотеке?</label>
+        <div id="links"></div>
+        <button class="add" id="add-link" type="button">+ ещё трек</button>
+        <div class="chips" aria-label="Подходящие сервисы">
+          <span>Яндекс Музыка</span><span>VK Музыка</span><span>Spotify</span><span>YouTube</span><span>Apple Music</span><span>SoundCloud</span><span>Звук</span><span>Deezer</span>
+        </div>
+        <p class="err" id="err" role="alert"></p>
+        <button class="btn" id="send">Отправить 🎵</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const tg = window.Telegram && window.Telegram.WebApp;
+  const inTelegram = !!(tg && tg.initData);
+  const MAX_LINKS = 5;
+  const ALLOWED_HOSTS = [
+    "music.yandex.ru", "music.yandex.com", "music.yandex.by", "music.yandex.kz",
+    "vk.com", "vk.ru", "boom.ru", "open.spotify.com", "spotify.link",
+    "youtube.com", "youtu.be", "music.apple.com", "soundcloud.com",
+    "zvuk.com", "deezer.com", "deezer.page.link", "music.mts.ru",
+  ];
+
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    try { tg.setHeaderColor("#0a1036"); tg.setBackgroundColor("#060920"); } catch (e) {}
+    if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+  }
+
+  const $ = (s) => document.querySelector(s);
+  const haptic = (t) => { try { tg.HapticFeedback.selectionChanged(); } catch (e) {} };
+
+  function toast(text) {
+    const el = $("#toast");
+    el.textContent = text;
+    el.classList.add("show");
+    clearTimeout(toast.t);
+    toast.t = setTimeout(() => el.classList.remove("show"), 3200);
+  }
+
+  // ---------- навигация ----------
+  const order = ["s-hello", "s-rules", "s-reg"];
+  const history = [];
+  let current = null;
+  function show(id) {
+    if (current) document.getElementById(current).classList.remove("active");
+    document.getElementById(id).classList.add("active");
+    current = id;
+    const idx = order.indexOf(id);
+    $(".steps").style.visibility = idx < 0 ? "hidden" : "visible";
+    document.querySelectorAll(".steps span").forEach((s, i) => s.classList.toggle("on", i <= idx));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (tg && tg.BackButton) history.length ? tg.BackButton.show() : tg.BackButton.hide();
+  }
+  function go(id) { history.push(current); show(id); }
+  function back() { if (history.length) show(history.pop()); }
+  document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
+  if (tg && tg.BackButton) tg.BackButton.onClick(back);
+
+  const pending = new URLSearchParams(location.search).get("s") === "pending";
+  show(pending ? "s-status" : "s-hello");
+
+  $("#cancel-app").addEventListener("click", () => {
+    const doCancel = () => send({ action: "cancel" });
+    if (inTelegram && tg.showConfirm) {
+      tg.showConfirm("Отменить последнюю заявку с треком?", (yes) => { if (yes) doCancel(); });
+    } else {
+      doCancel();
+    }
+  });
+
+  // ---------- правила ----------
+  $("#agree").addEventListener("change", (e) => { haptic(); $("#to-reg").disabled = !e.target.checked; });
+  $("#to-reg").addEventListener("click", () => go("s-reg"));
+
+  // ---------- регистрация ----------
+  $("#g7").addEventListener("change", (e) => {
+    haptic();
+    const g7 = e.target.checked;
+    $("#g7-fields").classList.toggle("hidden", !g7);
+    $("#guest-fields").classList.toggle("hidden", g7);
+    $("#guest").classList.toggle("hidden", g7);
+    $("#err").textContent = "";
+  });
+
+  function addLinkRow(focus) {
+    const box = $("#links");
+    if (box.children.length >= MAX_LINKS) return;
+    const row = document.createElement("div");
+    row.className = "link-row";
+    row.innerHTML = '<input class="field" type="url" inputmode="url" placeholder="https://music.yandex.ru/…" autocapitalize="off" spellcheck="false">'
+      + '<button class="icon-btn" type="button" aria-label="Убрать">×</button>';
+    row.querySelector("button").addEventListener("click", () => {
+      if (box.children.length > 1) row.remove(); else row.querySelector("input").value = "";
+      updateAdd();
+    });
+    box.appendChild(row);
+    updateAdd();
+    if (focus) row.querySelector("input").focus();
+  }
+  function updateAdd() { $("#add-link").classList.toggle("hidden", $("#links").children.length >= MAX_LINKS); }
+  $("#add-link").addEventListener("click", () => addLinkRow(true));
+  addLinkRow(false);
+
+  function isMusicLink(value) {
+    try {
+      const u = new URL(value.trim());
+      if (!/^https?:$/.test(u.protocol)) return false;
+      const host = u.hostname.toLowerCase();
+      return ALLOWED_HOSTS.some((h) => host === h || host.endsWith("." + h));
+    } catch (e) { return false; }
+  }
+
+  function send(payload) {
+    const data = JSON.stringify(payload);
+    if (inTelegram) {
+      tg.sendData(data); // приложение закроется, бот получит данные
+    } else {
+      console.log("sendData:", data);
+      toast("Открой приложение кнопкой в боте — тогда заявка отправится");
+    }
+  }
+
+  function requireField(el, ok, message) {
+    if (ok) return true;
+    el.classList.add("bad");
+    $("#err").textContent = message;
+    el.focus();
+    return false;
+  }
+
+  $("#send").addEventListener("click", () => {
+    const err = $("#err");
+    const g7 = $("#g7").checked;
+    const inputs = [...document.querySelectorAll("#links input")];
+    err.textContent = "";
+    document.querySelectorAll(".field").forEach((i) => i.classList.remove("bad"));
+
+    let person;
+    if (g7) {
+      const name = $("#name").value.trim();
+      if (!requireField($("#name"), name.length >= 2, "Напиши имя и фамилию")) return;
+      person = { g7: true, name };
+    } else {
+      const school = $("#school").value.trim().replace(/^[№#]\s*/, "");
+      const first_name = $("#first-name").value.trim();
+      const last_name = $("#last-name").value.trim();
+      if (!requireField($("#school"), /\d/.test(school), "Напиши номер школы")) return;
+      if (!requireField($("#first-name"), first_name.length >= 2, "Напиши имя")) return;
+      if (!requireField($("#last-name"), last_name.length >= 2, "Напиши фамилию")) return;
+      person = { g7: false, school, first_name, last_name };
+    }
+    const filled = inputs.filter((i) => i.value.trim());
+    const bad = filled.filter((i) => !isMusicLink(i.value));
+    if (!filled.length) {
+      inputs[0].classList.add("bad");
+      err.textContent = "Добавь хотя бы одну ссылку на трек";
+      return;
+    }
+    if (bad.length) {
+      bad.forEach((i) => i.classList.add("bad"));
+      err.textContent = "Это не похоже на ссылку из музыкального сервиса";
+      return;
+    }
+    try { tg.HapticFeedback.notificationOccurred("success"); } catch (e) {}
+    send({ agreed: true, ...person, links: filled.map((i) => i.value.trim()) });
+  });
+
+  // ---------- снег ----------
+  (function snow() {
+    const c = $("#snow"), ctx = c.getContext("2d");
+    let w, h, flakes = [];
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    function resize() {
+      w = c.width = innerWidth * dpr; h = c.height = innerHeight * dpr;
+      const n = Math.round(Math.min(90, innerWidth / 5));
+      flakes = Array.from({ length: n }, () => ({
+        x: Math.random() * w, y: Math.random() * h, r: (Math.random() * 1.8 + .6) * dpr,
+        s: (Math.random() * .5 + .25) * dpr, d: Math.random() * Math.PI * 2, o: Math.random() * .6 + .35,
+      }));
+    }
+    function tick() {
+      ctx.clearRect(0, 0, w, h);
+      for (const f of flakes) {
+        f.y += f.s; f.d += .01; f.x += Math.sin(f.d) * .3 * dpr;
+        if (f.y > h + 4) { f.y = -4; f.x = Math.random() * w; }
+        ctx.globalAlpha = f.o;
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
+      }
+      requestAnimationFrame(tick);
+    }
+    addEventListener("resize", resize);
+    resize(); tick();
+  })();
+</script>
+</body>
+</html>
